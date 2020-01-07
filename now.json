@@ -1,0 +1,12 @@
+{
+  "name": "gql-explore",
+  "builds": [
+    {
+      "src": "now-build.sh",
+      "use": "@now/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    }
+  ]
+}
