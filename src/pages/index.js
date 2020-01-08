@@ -6,7 +6,7 @@ import { IconButton, Paper, Tab, Tabs } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 import AddIcon from '@material-ui/icons/Add';
 import CloseIcon from '@material-ui/icons/Close';
-import { ApolloLink, execute } from 'apollo-link';
+import { ApolloLink, execute, Observable } from 'apollo-link';
 import { onError } from 'apollo-link-error';
 import { HttpLink } from 'apollo-link-http';
 import { useSelector } from 'dva';
@@ -75,7 +75,9 @@ const Css = createGlobalStyle`
 `;
 
 export default props => {
-  const clickRef = useRef(null);
+  const isClickExplore = useRef(null);
+  const isClickTab = useRef(null);
+  const previousTabIndex = useRef(null);
   const classes = useStyles();
   const [sessions, setSessions] = useState(
     () =>
@@ -108,7 +110,7 @@ export default props => {
 
   const setClick = useCallback(e => {
     if (e.target.tagName === 'SPAN') {
-      clickRef.current = true;
+      isClickExplore.current = true;
     }
   }, []);
 
@@ -139,14 +141,56 @@ export default props => {
     ]);
   }, [httpLink]);
 
+  // tabs
+  useEffect(() => {
+    window.localStorage.setItem('sessions', JSON.stringify(sessions));
+  }, []);
+  useEffect(() => {
+    const activeTab = sessions.find((s, i) => i === tabIndex);
+    setTimeout(() => {
+      setQuery((activeTab && activeTab.query) || '');
+      graphiql.current && activeTab && activeTab.query && graphiql.current.handleRunQuery();
+    }, 0);
+  }, [tabIndex]);
+
   const fetcher = useCallback(
     ({ query, operationName, variables = {} }) => {
       const { query: query2, transform } = graphqlLodash(query, operationName);
       if (!finalLink) return [];
+      console.log(isClickTab.current);
+      if (isClickTab.current !== null) {
+        const result = sessions[isClickTab.current].result;
+        isClickTab.current = null;
+        if (result) {
+          return new Observable(observer => {
+            observer.next(result);
+            observer.complete();
+          });
+        }
+      }
       const result = execute(finalLink, { query: parse(query2), variables, context: {} });
-      return result.map(res => ({ ...res, data: transform(res.data) }));
+      const ret = result.map(res => {
+        const newResult = { ...res, data: transform(res.data) };
+        setSessions(p => p.map((a, i) => (tabIndex === i ? { ...a, result: newResult } : a)));
+        return newResult;
+      });
+      isClickTab.current = null;
+      if (query.includes('IntrospectionQuery')) {
+        return ret;
+      } else {
+        return new Observable(observer => {
+          const handle = ret.subscribe({
+            next: observer.next.bind(observer),
+            error: observer.error.bind(observer),
+            complete: observer.complete.bind(observer),
+          });
+          return () => {
+            handle.unsubscribe();
+          };
+        });
+      }
     },
-    [httpLink],
+    [httpLink, tabIndex],
   );
 
   // get schema
@@ -177,15 +221,6 @@ export default props => {
       closeNode && closeNode.removeEventListener('click', closeHistoryPane);
     };
   }, [uri]);
-
-  // tabs
-  useEffect(() => {
-    window.localStorage.setItem('sessions', JSON.stringify(sessions));
-  }, []);
-  useEffect(() => {
-    const activeTab = sessions.find((s, i) => i === tabIndex);
-    setQuery((activeTab && activeTab.query) || '');
-  }, [tabIndex]);
 
   const onTabChange = (e, i) => {
     setTabIndex(i);
@@ -233,17 +268,16 @@ export default props => {
     const newSessions = sessions.map((s, index) =>
       tabIndex === index ? { ...s, query, title } : s,
     );
-    setQuery(clickRef.current ? formatGql(query) : query);
+    setQuery(isClickExplore.current ? formatGql(query) : query);
     setVariables(undefined);
     setSessions(newSessions);
     window.localStorage.setItem('sessions', JSON.stringify(newSessions));
 
-    clickRef.current = false;
+    isClickExplore.current = false;
   };
   const onToggleExplorer = () => {
     setExplorerIsOpen(p => !p);
   };
-  // console.log(graphiql);
   return (
     <>
       <Css historyPaneOpen={historyPaneOpen} />
@@ -256,9 +290,6 @@ export default props => {
             explorerIsOpen={explorerIsOpen}
             onToggleExplorer={onToggleExplorer}
             onRunOperation={operationName => graphiql.handleRunQuery(operationName)}
-            setArgFields={a => {
-              console.log(a);
-            }}
           />
           <Paper square style={{ width: 0, flex: 1, display: 'flex', flexDirection: 'column' }}>
             <Box display="flex" alignItems="center">
@@ -273,6 +304,9 @@ export default props => {
                 {sessions.map(({ title, query }, i) => (
                   <Tab
                     key={i}
+                    onClick={e => {
+                      isClickTab.current = i;
+                    }}
                     classes={{ root: classes.tabRoot, selected: classes.tabSelected }}
                     label={
                       <Box flexCenter>
