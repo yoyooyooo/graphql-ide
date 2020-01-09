@@ -77,7 +77,7 @@ const Css = createGlobalStyle`
 export default props => {
   const isClickExplore = useRef(null);
   const isClickTab = useRef(null);
-  const previousTabIndex = useRef(null);
+  const previousSession = useRef(null);
   const classes = useStyles();
   const [sessions, setSessions] = useState(
     () =>
@@ -144,9 +144,10 @@ export default props => {
   // tabs
   useEffect(() => {
     window.localStorage.setItem('sessions', JSON.stringify(sessions));
-  }, []);
+    previousSession.current = sessions;
+  }, [sessions]);
   useEffect(() => {
-    const activeTab = sessions.find((s, i) => i === tabIndex);
+    const activeTab = previousSession.current.find((s, i) => i === tabIndex);
     setTimeout(() => {
       setQuery((activeTab && activeTab.query) || '');
       graphiql.current && activeTab && activeTab.query && graphiql.current.handleRunQuery();
@@ -159,7 +160,7 @@ export default props => {
       if (!finalLink) return [];
       console.log(isClickTab.current);
       if (isClickTab.current !== null) {
-        const result = sessions[isClickTab.current].result;
+        const result = previousSession.current[isClickTab.current].result;
         isClickTab.current = null;
         if (result) {
           return new Observable(observer => {
@@ -171,31 +172,33 @@ export default props => {
       const result = execute(finalLink, { query: parse(query2), variables, context: {} });
       const ret = result.map(res => {
         const newResult = { ...res, data: transform(res.data) };
-        setSessions(p => p.map((a, i) => (tabIndex === i ? { ...a, result: newResult } : a)));
+        !query.includes('IntrospectionQuery') &&
+          setSessions(p => p.map((a, i) => (tabIndex === i ? { ...a, result: newResult } : a)));
         return newResult;
       });
       isClickTab.current = null;
-      if (query.includes('IntrospectionQuery')) {
-        return ret;
-      } else {
-        return new Observable(observer => {
-          const handle = ret.subscribe({
-            next: observer.next.bind(observer),
-            error: observer.error.bind(observer),
-            complete: observer.complete.bind(observer),
-          });
-          return () => {
-            handle.unsubscribe();
-          };
-        });
-      }
+      return ret;
+      // if (query.includes('IntrospectionQuery')) {
+      //   return ret;
+      // } else {
+      //   return new Observable(observer => {
+      //     const handle = ret.subscribe({
+      //       next: observer.next.bind(observer),
+      //       error: observer.error.bind(observer),
+      //       complete: observer.complete.bind(observer),
+      //     });
+      //     return () => {
+      //       handle.unsubscribe();
+      //     };
+      //   });
+      // }
     },
-    [httpLink, tabIndex],
+    [finalLink, tabIndex],
   );
 
   // get schema
   useEffect(() => {
-    const editor = graphiql.current && graphiql.current.getQueryEditor();
+    // const editor = graphiql.current && graphiql.current.getQueryEditor();
     // console.log(editor);
     httpLink &&
       fetcher({
@@ -205,7 +208,7 @@ export default props => {
           extendSchema(buildClientSchema(result.data), parse(new Source(extraSchema, 'mySchema'))),
         );
       });
-  }, [uri]);
+  }, [httpLink]); // eslint-disable-line
 
   const closeHistoryPane = useCallback(() => {
     setHistoryPaneOpen(false);
@@ -220,7 +223,7 @@ export default props => {
     return () => {
       closeNode && closeNode.removeEventListener('click', closeHistoryPane);
     };
-  }, [uri]);
+  }, [uri, closeHistoryPane]);
 
   const onTabChange = (e, i) => {
     setTabIndex(i);
@@ -228,7 +231,7 @@ export default props => {
       i === index ? { ...s, active: true } : { ...s, active: false },
     );
     setSessions(newSessions);
-    window.localStorage.setItem('sessions', JSON.stringify(newSessions));
+    // window.localStorage.setItem('sessions', JSON.stringify(newSessions));
   };
 
   const addTab = () => {
@@ -238,7 +241,7 @@ export default props => {
     ];
     setTabIndex(newSessions.length - 1);
     setSessions(newSessions);
-    window.localStorage.setItem('sessions', JSON.stringify(newSessions));
+    // window.localStorage.setItem('sessions', JSON.stringify(newSessions));
   };
 
   const closeTab = i => {
@@ -248,12 +251,12 @@ export default props => {
       setSessions(newSessions);
       setTabIndex(0);
       setQuery('');
-      window.localStorage.setItem('sessions', JSON.stringify(newSessions));
+      // window.localStorage.setItem('sessions', JSON.stringify(newSessions));
       return;
     }
     setSessions(newSessions);
     setTabIndex(p => p - 1);
-    window.localStorage.setItem('sessions', JSON.stringify(newSessions));
+    // window.localStorage.setItem('sessions', JSON.stringify(newSessions));
   };
 
   const clearDefaultQueryState = query => {
@@ -271,7 +274,7 @@ export default props => {
     setQuery(isClickExplore.current ? formatGql(query) : query);
     setVariables(undefined);
     setSessions(newSessions);
-    window.localStorage.setItem('sessions', JSON.stringify(newSessions));
+    // window.localStorage.setItem('sessions', JSON.stringify(newSessions));
 
     isClickExplore.current = false;
   };
