@@ -105,7 +105,9 @@ export default props => {
   const [historyPaneOpen, setHistoryPaneOpen] = useState(false);
 
   const prettierQuery = query => {
-    setQuery(formatGql(query));
+    const newQuery = formatGql(query);
+    setSessions(p => p.map((a, i) => (i === tabIndex ? { ...a, query: newQuery } : a)));
+    setQuery(newQuery);
   };
 
   const setClick = useCallback(e => {
