@@ -7,16 +7,17 @@ import { makeStyles } from '@material-ui/core/styles';
 import AddIcon from '@material-ui/icons/Add';
 import CloseIcon from '@material-ui/icons/Close';
 import { ApolloLink, execute, Observable } from 'apollo-link';
+import { setContext } from 'apollo-link-context';
 import { onError } from 'apollo-link-error';
 import { HttpLink } from 'apollo-link-http';
 import { useSelector } from 'dva';
 import GraphiQL from 'graphiql';
 import Explorer from 'graphiql-explorer';
 import 'graphiql/graphiql.css';
-import { extendSchema } from 'graphql';
+import { extendSchema, printSchema, printType } from 'graphql';
 import { graphqlLodash } from 'graphql-lodash';
-import { Source } from 'graphql/language';
-import { parse } from 'graphql/language/parser';
+import { Source, printSourceLocation } from 'graphql/language';
+import { parse, parseType, parseValue } from 'graphql/language/parser';
 import { print } from 'graphql/language/printer';
 import { buildClientSchema, getIntrospectionQuery } from 'graphql/utilities';
 import get from 'lodash/get';
@@ -94,6 +95,7 @@ export default props => {
     return (activeTab && activeTab.query) || window.localStorage.getItem('graphiql:query') || '';
   });
   const uri = useSelector(state => state.global.graphqlUri);
+  const headers = useSelector(state => state.global.headers);
   const graphiql = useRef(null);
   const [variables, setVariables] = useState('');
   const [tabIndex, setTabIndex] = React.useState(() => {
@@ -125,10 +127,10 @@ export default props => {
       node && node.removeEventListener('click', setClick);
     };
   }, [schema]);
-
+  console.log({ headers });
   const httpLink = useMemo(
-    () => uri && new HttpLink({ uri, credentials: 'same-origin' /* , headers: {}  */ }),
-    [uri],
+    () => uri && new HttpLink({ uri, credentials: 'same-origin', headers }),
+    [uri, headers],
   );
 
   const finalLink = useMemo(() => {
@@ -139,9 +141,12 @@ export default props => {
           // setSchema(null);
         }
       }),
+      setContext(() => ({
+        headers,
+      })),
       ...(httpLink ? [httpLink] : []),
     ]);
-  }, [httpLink]);
+  }, [httpLink, headers]);
 
   // tabs
   useEffect(() => {
@@ -160,7 +165,6 @@ export default props => {
     ({ query, operationName, variables = {} }) => {
       const { query: query2, transform } = graphqlLodash(query, operationName);
       if (!finalLink) return [];
-      console.log(isClickTab.current);
       if (isClickTab.current !== null) {
         const result = previousSession.current[isClickTab.current].result;
         isClickTab.current = null;
@@ -206,9 +210,12 @@ export default props => {
       fetcher({
         query: getIntrospectionQuery(),
       }).forEach(result => {
-        setSchema(
-          extendSchema(buildClientSchema(result.data), parse(new Source(extraSchema, 'mySchema'))),
+        const schema = extendSchema(
+          buildClientSchema(result.data),
+          parse(new Source(extraSchema, 'mySchema')),
         );
+        console.log(printSchema(schema));
+        setSchema(schema);
       });
   }, [httpLink]); // eslint-disable-line
 

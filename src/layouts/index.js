@@ -14,14 +14,21 @@ const useStyles = makeStyles(theme => ({
     position: 'absolute',
     bottom: theme.spacing(2),
     right: theme.spacing(2),
+    zIndex: 999,
   },
 }));
 
 const Content = ({ popupState }) => {
   const dispatch = useDispatch();
   const [uri, setUri] = useState(window.localStorage.getItem('uri') || '');
+  const [headers, setHeaders] = useState(
+    window.localStorage.getItem('headers') ||
+      `{
+
+}`,
+  );
   return (
-    <Box p={2}>
+    <Box p={2} display="flex" flexDirection="column">
       <TextField
         label="Graphql Url"
         placeholder="please input graphql url"
@@ -29,14 +36,29 @@ const Content = ({ popupState }) => {
         value={uri}
         onChange={e => setUri(e.target.value)}
       />
+      <TextField
+        multiline
+        rows={5}
+        rowsMax={10}
+        label="Headers"
+        placeholder=""
+        style={{ width: 500, minHeight: 400 }}
+        value={headers}
+        onChange={e => setHeaders(e.target.value)}
+      />
       <Box position="absolute" right={10} bottom={10}>
         <Button
           variant="contained"
           color="primary"
           style={{ marginLeft: 10 }}
           onClick={e => {
-            dispatch({ type: 'global/save', payload: { graphqlUri: uri } });
+            let _headers = '';
+            try {
+              _headers = JSON.parse(headers);
+            } catch (err) {}
+            dispatch({ type: 'global/save', payload: { graphqlUri: uri, headers: _headers } });
             window.localStorage.setItem('uri', uri);
+            window.localStorage.setItem('headers', headers);
             popupState.close();
           }}
         >
