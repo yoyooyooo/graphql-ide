@@ -1,6 +1,6 @@
 {
   "private": true,
-  "name": "graphql-explore",
+  "name": "graphql-ide",
   "scripts": {
     "start": "umi dev",
     "build": "cross-env UMI_ENV=prod umi build",
@@ -8,6 +8,7 @@
     "lint": "eslint --ext .js src mock tests",
     "precommit": "lint-staged"
   },
+  "homepage": "https://yoyooyooo.github.io/graphql-ide",
   "dependencies": {
     "@material-ui/core": "^4.8.1",
     "@material-ui/icons": "^4.5.1",
