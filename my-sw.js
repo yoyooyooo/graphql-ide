@@ -11,11 +11,11 @@
  * See https://goo.gl/2aRDsh
  */
 
-importScripts("/workbox-v3.6.3/workbox-sw.js");
-workbox.setConfig({modulePathPrefix: "/workbox-v3.6.3"});
+importScripts("/graphql-ide/workbox-v3.6.3/workbox-sw.js");
+workbox.setConfig({modulePathPrefix: "/graphql-ide/workbox-v3.6.3"});
 
 importScripts(
-  "/precache-manifest.dbc6d76743fe1f7e4e2043eb37d406b4.js"
+  "/graphql-ide/precache-manifest.a17f5fffd4306c9fe04da6abf0929327.js"
 );
 
 workbox.core.setCacheNameDetails({prefix: "graphql-ide"});
