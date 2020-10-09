@@ -4,6 +4,7 @@
   "scripts": {
     "start": "umi dev",
     "build": "cross-env UMI_ENV=prod umi build",
+    "build-git": "cross-env UMI_ENV=git-prod umi build",
     "test": "umi test",
     "lint": "eslint --ext .js src mock tests",
     "precommit": "lint-staged"
